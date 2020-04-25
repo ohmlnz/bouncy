@@ -1,17 +1,12 @@
 #define OLC_PGE_APPLICATION
 #include "olcPixelGameEngine.h"
-#include <stdio.h>      /* NULL */
-#include <stdlib.h>     /* srand, rand */
-#include <time.h>      /* time */
-#include <math.h>      /* cos, sin */
+#include <stdio.h>  
+#include <stdlib.h>   
+#include <time.h>      
+#include <math.h>     
 #include <iostream>
 
-// TODO: restructure in a more object oriented approach
-// TODO: refactor variables to optimize RAM usage
-// TODO: use fElapsedTime to avoid CPU spikes / drops
-// TODO: display text prior to starting the game
-// TODO: update score
-// TODO: add time
+const float PI = 3.141592653589793f;
 
 class Bouncy : public olc::PixelGameEngine
 {
@@ -23,27 +18,31 @@ public:
 
 	bool OnUserCreate() override
 	{
+		// score declaration
+		std::string sScore = "Score: " + std::to_string(score);
+
 		// random angle declaration
-		initialAngle = returnRandomNumber();
+		initialAngle = float(returnRandomNumber());
 
 		// board declaration
 		board.height = 40;
 		board.width = 150;
 		board.x = (ScreenWidth() / 2) - (board.width / 2);
-		board.y = 550;
+		board.y = 550.0f;
 
 		// ball declaration
-		ball.height = 20;
-		ball.width = 20;
+		ball.height = 19;
+		ball.width = 19;
 		ball.x = ScreenWidth() / 2;
 		ball.y = ScreenHeight() / 2;
+		ball.sprite = new olc::Sprite("basket-ball.png");
 
 		// bricks declaration
-		int yPos = 10;
-		int xPos = 0;
+		float yPos = 10.0f;
+		float xPos = 0.1f;
 		int brickHeight = 30;
-		int brickwidth = 80;
-		int wLimit = ScreenWidth() / brickwidth;
+		int brickwidth = 78;
+		int wLimit = (ScreenWidth() - 5) / brickwidth;
 
 		for (int i = 0; i < MAX_BRICKS; i++)
 		{
@@ -51,32 +50,46 @@ public:
 			bricks[i].width = brickwidth;
 			bricks[i].height = brickHeight;
 
-			if (i != 0 && i % wLimit == 0)
+			if ((i+1) % wLimit == 0)
 			{
-				yPos += (brickHeight + 10);
-				xPos = 0;
+				yPos += float(brickHeight + 10);
+				xPos = 0.1f;
+				bricks[i].x = xPos * float(brickwidth + 10);
+				bricks[i].y = yPos;
+				FillRect(int(bricks[i].x), int(bricks[i].y), bricks[i].width, bricks[i].height, olc::RED);
+				continue;
 			}
-			bricks[i].x = xPos * (brickwidth + 10);
+			bricks[i].x = xPos * float(brickwidth + 10);
 			bricks[i].y = yPos;
-			FillRect(bricks[i].x, bricks[i].y, bricks[i].width, bricks[i].height, olc::RED);
+			FillRect(int(bricks[i].x), int(bricks[i].y), bricks[i].width, bricks[i].height, olc::RED);
 			xPos++;
 		}
 
 
+		// board initialization
+		FillRect(int(board.x), int(board.y), board.width, board.height, olc::WHITE);
+
+		// ball initialization	
+		SetPixelMode(olc::Pixel::MASK);
+		DrawSprite(int(ball.x), int(ball.y), ball.sprite);
+		SetPixelMode(olc::Pixel::NORMAL);
+
 		// visual boundaries initialization
-		DrawRect(2, 2, ScreenWidth() - 5, ScreenHeight() - 5, olc::WHITE);
+		DrawRect(2, 2, ScreenWidth() - 3, ScreenHeight() - 3, olc::WHITE);
 
-		// board instanciation
-		FillRect(board.x, board.y, board.width, board.height, olc::WHITE);
+		// intro text initialization
+		DrawString((ScreenWidth() / 2) - 215, (ScreenHeight() / 2) + 100, "Press the spacebar to start", olc::WHITE, 2);
 
-		// ball instanciation	
-		FillRect(ball.x, ball.y, ball.width, ball.height, olc::WHITE);
+		// score initialization
+		DrawString(ScreenWidth() - 80, ScreenHeight() - 15, sScore, olc::WHITE, 1);
 
 		return true;
 	}
 
 	bool OnUserUpdate(float	fElapsedTime) override
 	{
+		std::string sScore = "Score: " + std::to_string(score);
+
 		// board left and right controls
 		if (IsFocused())
 		{	
@@ -97,7 +110,11 @@ public:
 				// ball bouncing in random direction
 				if (!started) {
 					if (lost) {
+						// reset game status
 						lost = false;
+
+						// reset score
+						score = 0;
 
 						// reset board
 						board.x = (ScreenWidth() / 2) - (board.width / 2);
@@ -106,9 +123,15 @@ public:
 						// reset ball
 						ball.x = ScreenWidth() / 2;
 						ball.y = ScreenHeight() / 2;
+
+						// reset bricks
+						for (int i = 0; i < MAX_BRICKS; i++)
+						{
+							bricks[i].isDisplayed = true;
+						}
 					}
-					cosX = 5 * cos(initialAngle * (PI / 180));
-					cosY = 5 * sin(initialAngle * (PI / 180));
+					cosX = 500 * cos(initialAngle * (PI / 180));
+					cosY = 500 * sin(initialAngle * (PI / 180));
 					started = true;
 				}
 			}
@@ -116,18 +139,23 @@ public:
 
 		// ball movement
 		if (started) {
-			ball.x += cosX / 2;
-			ball.y += cosY / 2;
+			ball.x += cosX * fElapsedTime;
+			ball.y += cosY * fElapsedTime;
+
 			Clear(olc::BLACK);
-			FillRect(ball.x, ball.y, ball.width, ball.height, olc::WHITE);
-			FillRect(board.x, board.y, board.width, board.height, olc::WHITE);
+			SetPixelMode(olc::Pixel::MASK);
+			DrawSprite(int(ball.x), int(ball.y), ball.sprite);
+			SetPixelMode(olc::Pixel::NORMAL);
+
+			FillRect(int(board.x), int(board.y), board.width, board.height, olc::WHITE);
 			DrawRect(2, 2, ScreenWidth() - 5, ScreenHeight() - 5, olc::WHITE);
+
 			// bricks instanciation
 			for (int i = 0; i < MAX_BRICKS; i++)
 			{
 				if (bricks[i].isDisplayed)
 				{
-					FillRect(bricks[i].x, bricks[i].y, bricks[i].width, bricks[i].height, olc::RED);
+					FillRect(int(bricks[i].x), int(bricks[i].y), bricks[i].width, bricks[i].height, olc::RED);
 				}
 			}
 		}
@@ -148,13 +176,13 @@ public:
 			{
 				lost = true;
 				started = false;
-				// DrawString(10, 10, "Score: " + std::to_string(40), olc::WHITE);
+				std::string finalScore = "You lost! Your score is: " + std::to_string(score);
+				DrawString((ScreenWidth() / 2) - 215, (ScreenHeight() / 2) + 100, finalScore, olc::WHITE, 2);
 			}
 		}
 
-		// Render score
-		// DrawString(10, 10, "Score: " + std::to_string(40), olc::WHITE);
-
+		// update score
+		DrawString(ScreenWidth() - 80, ScreenHeight() - 15, sScore, olc::WHITE, 1);
 		return true;
 	}
 
@@ -179,15 +207,15 @@ public:
 
 	bool isColliding()
 	{
-		int l1 = ball.x;
-		int t1 = ball.y;
-		int r1 = ball.x + ball.width;
-		int b1 = ball.y + ball.height;
+		float l1 = ball.x;
+		float t1 = ball.y;
+		float r1 = ball.x + ball.width;
+		float b1 = ball.y + ball.height;
 
-		int l2 = board.x;
-		int t2 = board.y;
-		int r2 = board.x + board.width;
-		int b2 = board.y + board.height;
+		float l2 = board.x;
+		float t2 = board.y;
+		float r2 = board.x + board.width;
+		float b2 = board.y + board.height;
 
 		bool boardCollision = true;
 		bool wallCollision = true;
@@ -196,10 +224,10 @@ public:
 		// ball vs bricks
 		for (int i = 0; i < MAX_BRICKS; i++)
 		{
-			int l3 = bricks[i].x;
-			int t3 = bricks[i].y;
-			int r3 = bricks[i].x + bricks[i].width;
-			int b3 = bricks[i].y + bricks[i].height;
+			float l3 = bricks[i].x;
+			float t3 = bricks[i].y;
+			float r3 = bricks[i].x + bricks[i].width;
+			float b3 = bricks[i].y + bricks[i].height;
 
 			if (b1 < t3 || t1 > b3 || r1 < l3 || l1 > r3)
 			{
@@ -211,6 +239,7 @@ public:
 				{
 					bricks[i].isDisplayed = false;
 					brickCollision = true;
+					score++;
 					break;
 				}
 			}
@@ -237,21 +266,21 @@ public:
 	 }
 
 private:
-	short int MAX_BRICKS = 50;
 	struct object {
-		double x;
-		double y;
-		double height;
-		double width;
+		float x;
+		float y;
+		int height;
+		int width;
 		bool isDisplayed = true;
-	} ball, board, bricks[50];
-
-	const double PI = 3.141592653589793;
-	int initialAngle = 90;
+		olc::Sprite *sprite = nullptr;
+	} ball, board, bricks[49];
+	short int MAX_BRICKS = 49;
+	float initialAngle = 90.0f;
+	float cosX = 0.0f;
+	float cosY = 0.0f;
 	bool started = false;
 	bool lost = false;
-	double cosX = 0;
-	double cosY = 0;
+	int score = 0;
 };
 
 int main()
